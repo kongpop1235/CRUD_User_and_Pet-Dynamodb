@@ -69,20 +69,23 @@ const getUser = async (id, age, fname, lname, username) => {
     return result;
 }
 const createUser = async (age, fname, lname, pet, username) => {
-    const newId = await (await dynamoClient.scan({ TableName: TABLE_USER }).promise()).Count + 1;
+    const dataId = await dynamoClient.scan({ TableName: TABLE_USER }).promise();
+    dataId.Items.sort(function (a, b) { return a.id - b.id });
+    let newId = parseInt(dataId.Items[dataId.Items.length - 1].id) + 1;
     const params = {
         TableName: TABLE_USER,
         Item: {
             'id': `${newId}`,
             'age': age,
-            'fname': fname,
-            'lname': lname,
+            'fname':  fname.charAt(0).toUpperCase() + fname.slice(1),
+            'lname':  lname.charAt(0).toUpperCase() + lname.slice(1),
             'pet': pet,
             'username': username
         }
     };
-    await dynamoClient.put(params).promise();
-    return "Successfully create user";
+    const result = { "report": await dynamoClient.put(params).promise(), "id": newId };
+    return result;
+    // return "Successfully create user";
 }
 const updateUser = async (id, age, fname, lname, pet, username) => {
     const params = {
@@ -114,7 +117,6 @@ const updateUser = async (id, age, fname, lname, pet, username) => {
         }
         params.ExpressionAttributeValues[`:lname`] = `${lname}`
     }
-    console.log(params.UpdateExpression);
     if (pet != undefined) {
         if (params.UpdateExpression == `set`) {
             params.UpdateExpression += ` pet = :pet`;
@@ -131,7 +133,7 @@ const updateUser = async (id, age, fname, lname, pet, username) => {
         }
         params.ExpressionAttributeValues[`:username`] = `${username}`;
     }
-    return dynamoClient.update(params).promise();
+    return await dynamoClient.update(params).promise();
 }
 const deleteUser = async (id) => {
     const params = {
@@ -140,8 +142,8 @@ const deleteUser = async (id) => {
             id: `${id}`
         }
     };
-    return await dynamoClient.delete(params).promise();
-    // return "Successfully delete user";
+    dynamoClient.delete(params).promise();
+    return "Successfully delete user";
 }
 
 //!PET
@@ -152,7 +154,7 @@ const getPets = async () => {
     const result = await dynamoClient.scan(params).promise();
     return result;
 }
-const getPet = async (id, name, type) => {
+const getPet = async (id, pname, species) => {
     const params = {
         TableName: TABLE_PET,
         FilterExpression: ``,
@@ -162,31 +164,41 @@ const getPet = async (id, name, type) => {
         params.FilterExpression += `id = :id`;
         params.ExpressionAttributeValues[`:id`] = `${id}`;
     }
-    if (name != undefined) {
-        params.FilterExpression += `name = :name`;
-        params.ExpressionAttributeValues[`:name`] = `${name}`;
+    if (species != undefined) {
+        if (params.FilterExpression != "") {
+            params.FilterExpression += ` and pname = :pname`;
+        } else {
+            params.FilterExpression += `pname = :pname`;
+        }
+        params.ExpressionAttributeValues[`:pname`] = `${pname}`;
     }
-    if (type != undefined) {
-        params.FilterExpression += `type = :type`;
-        params.ExpressionAttributeValues[`:type`] = `${type}`;
+    if (species != undefined) {
+        if (params.FilterExpression != "") {
+            params.FilterExpression += ` and species = :species`;
+        } else {
+            params.FilterExpression += `species = :species`;
+        }
+        params.ExpressionAttributeValues[`:species`] = `${species}`;
     }
     const result = await dynamoClient.scan(params).promise();
     return result;
 }
-const createPet = async (name, type) => {
-    const newId = await (await dynamoClient.scan({ TableName: TABLE_PET }).promise()).Count + 1;
-    const params = {
+const createPet = async (pname, species) => {
+    const dataId = await dynamoClient.scan({ TableName: TABLE_PET }).promise();
+    dataId.Items.sort(function (a, b) { return a.id - b.id });
+    let newId = parseInt(dataId.Items[dataId.Items.length - 1].id) + 1;
+    let params = {
         TableName: TABLE_PET,
         Item: {
             'id': `${newId}`,
-            'name': name,
-            'type': type
+            'pname': pname.charAt(0).toUpperCase() + pname.slice(1),
+            'species': species.charAt(0).toUpperCase() + species.slice(1)
         }
     };
-    await dynamoClient.put(params).promise();
-    return "Successfully create user"
+    const result = {"report" : await dynamoClient.put(params).promise(), "id" : newId};
+    return result;
 }
-const updatePet = async (id, name, type) => {
+const updatePet = async (id, pname, species) => {
     const params = {
         TableName: TABLE_PET,
         Key: {
@@ -194,20 +206,24 @@ const updatePet = async (id, name, type) => {
         },
         UpdateExpression: "set",
         ExpressionAttributeValues: {},
-        ReturnValues: "UPDATED_NEW"
+        ReturnValues: "UPDATED_NEW",
     };
-    if (name != undefined) {
-        params.UpdateExpression += ` name = :name`;
-        params.ExpressionAttributeValues[`:name`] = `${name}`;
-    };
-    if (type != undefined) {
+    if (pname != undefined) {
         if (params.UpdateExpression == `set`) {
-            params.UpdateExpression += ` type = :type`;
+            params.UpdateExpression += ` pname = :pname`;
         } else {
-            params.UpdateExpression += ` and type = :type`;
+            params.UpdateExpression += ` , pname = :pname`;
         }
-        params.ExpressionAttributeValues[`:type`] = `${type}`;
-    };
+        params.ExpressionAttributeValues[`:pname`] = `${pname.charAt(0).toUpperCase() + pname.slice(1)}`;
+    }
+    if (species != undefined) {
+        if (params.UpdateExpression == `set`) {
+            params.UpdateExpression += ` species = :species`;
+        } else {
+            params.UpdateExpression += ` , species = :species`;
+        }
+        params.ExpressionAttributeValues[`:species`] = `${species.charAt(0).toUpperCase() + species.slice(1)}`;
+    }
     const result = dynamoClient.update(params).promise();
     return result;
 }
