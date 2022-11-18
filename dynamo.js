@@ -11,7 +11,7 @@ const dynamoClient = new AWS.DynamoDB.DocumentClient();
 const TABLE_USER = "DevOpsChallenge-Kongpop-User";
 const TABLE_PET = "DevOpsChallenge-Kongpop-Pets";
 
-//!USER
+//!USERs
 const getUsers = async () => {
     const params = {
         TableName: TABLE_USER
